@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Gmail Sender Extension</title>
+
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link rel="stylesheet" href="css/materialize.min.css">
+    <link rel="stylesheet" href="css/popup.css">
+</head>
+
+<body>
+    <form id="form">
+        <div class="row" style="display: flex; align-items: center;">
+            <!-- <div class="col s3"><img class="responsive-img" src="icon.png"></div> -->
+            <div class="col s12">
+                <h4 class="teal-text text-darken-1 center-align">Auto Gmail Sender</h4>
+                <h6 class="teal-text text-darken-1 center-align">(using MongoDB)</h6>
+            </div>
+        </div>
+        <div class="row">
+            <div class="input-field col s12">
+                <select id="collectionSelect">
+                    <option value="" disabled selected>Choose your target collection</option>
+                </select>
+                <label>Collection Name</label>
+            </div>
+        </div>
+        <div class="row">
+            <div class="input-field col s12">
+                <textarea id="to" class="materialize-textarea"></textarea>
+                <label for="to">Recipients</label>
+                <span class="helper-text" data-error="wrong" data-success="right">Give Recipient addresses.</span>
+            </div>
+        </div>
+        <div class="row">
+            <div class="input-field col s12">
+                <input id="email_field_name" type="text">
+                <label for="email_field_name">Email Field Name (Optional)</label>
+                <span class="helper-text" data-error="wrong" data-success="right">Provide email field name at your
+                    database. Default as 'contact_email_1'</span>
+            </div>
+        </div>
+        <div class="row">
+            <div class="input-field col s12">
+                <input id="interval" type="number" min="4000">
+                <label for="interval">Time Interval</label>
+                <span class="helper-text" data-error="Value must be at least 4000" data-success="right">Give time
+                    interval
+                    in milliseconds</span>
+            </div>
+        </div>
+        <div class="row">
+            <div class="input-field col s6">
+                <input id="start_point" type="number">
+                <label for="start_point">Start Index</label>
+                <span class="helper-text" data-error="wrong" data-success="right">Provide index where you want to filter
+                    from.</span>
+            </div>
+            <div class="input-field col s6">
+                <input id="end_point" type="number">
+                <label for="end_point">Ending Index</label>
+                <span class="helper-text" data-error="wrong" data-success="right">Provide index where you want to filter
+                    until.</span>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col s12">
+                <button class="btn waves-effect waves-light" type="submit" name="action" id="start">Start Sending
+                    <i class="material-icons right">send</i>
+                </button>
+            </div>
+        </div>
+    </form>
+
+    <script type="text/javascript" src="js/materialize.min.js"></script>
+    <script type="text/javascript" src="js/popup.js"></script>
+</body>
+
+</html>

@@ -1,0 +1,37 @@
+{
+    "manifest_version": 3,
+    "name": "Auto Gmail Sender (MongoDB)",
+    "version": "2.0.0",
+    "description": "Automatically send Gmail",
+    "icons": {
+        "16": "icon16.png",
+        "48": "icon48.png",
+        "128": "icon128.png"
+      },
+    "permissions": [
+      "tabs",
+      "identity",
+      "scripting",
+      "storage",
+      "notifications"
+    ],
+    "host_permissions": [
+      "https://mail.google.com/*",
+      "http://localhost:5000/*",
+      "https://api.openai.com/v1/*"
+    ],
+    "content_scripts": [
+        {
+          "matches": ["https://mail.google.com/*"],
+          "js": ["content.js"],
+          "run_at": "document_end"
+        }
+      ],
+    "background": {
+        "service_worker": "background.js"
+    },
+    "action": {
+      "default_title": "Auto Gmail Sender",
+      "default_popup": "popup.html"
+    }
+  }
