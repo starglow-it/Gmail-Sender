@@ -49,64 +49,67 @@ app.get("/collections", async (req, res) => {
   }
 });
 
-app.get("/:collectionName/:startIndex/:endIndex/:pageNum", async (req, res) => {
+app.get("/getContactList", async (req, res) => {
   try {
-    const collectionName = req.params.collectionName;
-    const startIndex = Number(req.params.startIndex);
-    const endIndex = Number(req.params.endIndex);
-    const pageNum = Number(req.params.pageNum);
-
-    if (startIndex + pageNum * 2 >= endIndex) {
-      return res.json({
-        message: "Data Fetching finished.",
-        finished: true,
-      });
-    }
-
-    const limitNumber =
-      startIndex + (pageNum + 1) * 2 < endIndex
-        ? 2
-        : endIndex - startIndex - pageNum * 2;
-
+    const { collectionName, startIndex, pageNum, limit, type, search } = extractQueryParams(req);
     const collection = mongoose.connection.db.collection(collectionName);
-
-    const partData = await collection
-      .find({ passed_validator: { $ne: null } }, { _id: 0 })
-      .skip(startIndex + pageNum * 2)
-      .limit(limitNumber)
-      .toArray();
+    const filterOption = buildFilterOptions(JSON.parse(search));
+    
+    const partData = await fetchContacts(collection, filterOption, startIndex, pageNum, limit);
 
     if (partData.length === 0) {
-      return res.json({
-        message: "Data Fetching finished.",
-        finished: true,
-      });
+      return res.json({ message: "Data Fetching finished.", finished: true });
     }
 
-    await Promise.all(
-      partData.map(async (contact) => {
-        try {
-          const companyData = await extractCompanyContent(
-            "https://" + contact["company_website"]
-          );
-          contact["company_data"] = companyData;
-        } catch (error) {
-          console.log("Error scraping company data: ");
-          contact["company_data"] = "";
-        }
-      })
-    );
+    const result = type === 'send' ? await enrichContactsWithCompanyData(partData) : partData;
 
-    return res.json({
-      contacts: partData,
-      finished: false,
-    });
+    res.json({ contacts: result, finished: false });
   } catch (error) {
-    throw error;
+    console.error("Error in getContactList:", error);
+    res.status(500).json({ message: "An error occurred while fetching contact list." });
   }
 });
 
-app.post("/:collectionName/save", async (req, res) => {
+function extractQueryParams(req) {
+  return {
+    collectionName: req.query.collectionName,
+    startIndex: Number(req.query.startIndex),
+    pageNum: Number(req.query.pageNum),
+    limit: Number(req.query.limit),
+    type: req.query.type,
+    search: req.query.search
+  };
+}
+
+function buildFilterOptions(search) {
+  const filterOption = {};
+  if (search && Object.keys(JSON.parse(search)).includes("passed_validator") && JSON.parse(search).passed_validator) {
+    filterOption['passed_validator'] = { $ne: null };
+  }
+  return filterOption;
+}
+
+async function fetchContacts(collection, filterOption, startIndex, pageNum, limit) {
+  return collection
+    .find(filterOption)
+    .skip(startIndex + (pageNum * limit))
+    .limit(limit)
+    .toArray();
+}
+
+async function enrichContactsWithCompanyData(partData) {
+  return Promise.all(partData.map(async (contact) => {
+    try {
+      const companyData = await extractCompanyContent("https://" + contact.company_website);
+      return { ...contact, company_data: companyData }; // Return new object with company data
+    } catch (error) {
+      console.log("Error scraping company data for:", contact.company_website, error);
+      return { ...contact, company_data: "" }; // Return contact with empty company data on error
+    }
+  }));
+}
+
+app.post("/:collectionName/updateStatus", async (req, res) => {
   try {
     const { sentList } = req.body;
     const { collectionName } = req.params;
@@ -124,6 +127,32 @@ app.post("/:collectionName/save", async (req, res) => {
     console.log(error);
   }
 });
+
+
+app.post("/:collectionName/addValidation", async (req, res) => {
+  try {
+    const { filtered } = req.body;
+    const { collectionName } = req.params;
+
+    for (const doc of filtered) {
+      const updatedDoc = { ...doc };
+      delete updatedDoc._id;
+
+      await mongoose.connection.db.collection(collectionName).findOneAndUpdate(
+        { _id: new mongoose.Types.ObjectId(doc._id) }, // Ensure _id is an ObjectId
+        { $set: updatedDoc }, // Use $set to update fields
+        { upsert: true } // Create a new document if no match is found
+      );
+    }
+
+    return res.status(200).json({
+      message: "Successfully saved",
+    });
+  } catch (error) {
+    console.log(error);
+  }
+});
+
 
 mongoose
   .connect(process.env.DB_URI)
