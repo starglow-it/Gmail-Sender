@@ -1,28 +1,40 @@
 var contacts,
-  result_contacts = [],
-  pageSize,
-  pageNumber,
-  startIndex,
-  endIndex,
-  emailFieldName,
-  collectionName,
-  sentList = [];
-
+  pageSize = 2;
 
 const sendingEmail = (function () {
   let isSending = false;
   let currentIndex = 0;
+
   async function processQueue(params) {
     let contacts = [];
-    contacts = getNextPageData(params);
-    // while (isSending && currentIndex < emailQueue.length) {
-    //   await sendNewEmail(emailQueue[currentIndex]);
-    //   currentIndex++;
-    //   if (currentIndex >= emailQueue.length) {
-    //     console.log("Finished sending all emails.");
-    //     stop(); // Optionally stop when queue is empty
-    //   }
-    // }
+    contacts = await getNextPageData(params);
+
+    while (isSending && contacts.length) {
+      if (currentIndex >= contacts.length) {
+        params.pageNumber++;
+        currentIndex = 0;
+
+        await updateStatus(
+          params.collectionName,
+          contacts.map((contact) => contact._id)
+        );
+
+        contacts = await getNextPageData(params);
+      }
+      // If contacts array no element, no need to iterate more.
+      if (!contacts.length) {
+        break;
+      }
+      await sendNewEmail(contacts[currentIndex], params.emailFieldName);
+      currentIndex++;
+      // Wait for interval time
+      await new Promise((resolve) => setTimeout(resolve, params.interval));
+    }
+
+    if (!contacts.length) {
+      console.log("Finished sending all emails.");
+      stop(); // Optionally stop when queue is empty
+    }
   }
 
   function start(params) {
@@ -38,12 +50,63 @@ const sendingEmail = (function () {
 
   return {
     start,
-    stop
+    stop,
   };
 })();
 
+const filteringEmail = (function () {
+  let isFiltering = false;
+  let currentIndex = 0;
 
+  async function processQueue(params) {
+    let contacts = [];
+    contacts = await getNextPageData(params);
 
+    while (isFiltering && contacts.length) {
+      if (currentIndex >= contacts.length) {
+        params.pageNumber++;
+        currentIndex = 0;
+        console.log("1");
+        await addValidation(params.collectionName, contacts);
+        contacts = await getNextPageData(params);
+        console.log("2");
+      }
+      console.log("3");
+      // If contacts array no element, no need to iterate more.
+      if (!contacts.length) {
+        break;
+      }
+      console.log("4");
+      await filterNewEmail(contacts[currentIndex], params.emailFieldName);
+      console.log("5");
+      currentIndex++;
+      console.log("6", currentIndex);
+      // Wait for interval time
+      await new Promise((resolve) => setTimeout(resolve, params.interval));
+    }
+
+    if (!contacts.length) {
+      console.log("Finished sending all emails.");
+      stop(); // Optionally stop when queue is empty
+    }
+  }
+
+  function start(params) {
+    if (!isFiltering) {
+      isFiltering = true;
+      processQueue(params);
+    }
+  }
+
+  function stop() {
+    isFiltering = false;
+  }
+
+  return {
+    start,
+    stop,
+  };
+})();
 
 async function callChatGPT(promptText, callback) {
   const chatGPTApiUrl = "https://api.openai.com/v1/chat/completions";
@@ -75,9 +138,6 @@ async function generateEmailContent(
   email
 ) {
   try {
-    console.log(firstName);
-    console.log(lastName);
-    console.log(companyName);
     console.log(companyContent);
 
     const promptText = `CEO's First Name: ${firstName}, CEO's Last Name: ${lastName}
@@ -109,17 +169,20 @@ async function generateEmailContent(
   0. Complete CEO's company name, CEO's name, and detail about CEO's company
   1. The template I provided is example message. Make impactful message by ADDING MORE achievements(creatively imagine!!!) not just only the example
   2. Make content in HTML format.
-  3. Provide me only JSON {"subject": "...", "content": "..."}
+  3. Provide me exact JSON format {"subject": "...", "content": "..."}
   4. Don't write https://starglowventures.com directly. Instead write <a> link with href="https://starglowventures.com?id=${
     firstName + " " + lastName
   }" for example '..., <a href="...">visit our website</a>'. Make link only for starglow ventures.
   5. Remove <html><body>, </body></html>.
-  6. Add unsubscribe section with link in the footer.
+  6. Add unsubscribe section with link of href="https://starglowventures.com/unsubscribe?id=${
+    firstName + " " + lastName
+  }" in the footer.
   7. Never include 'opportunity' or 'opportunities' in the subject.
   8. Add this in the bottom of email. <img src="https://starglowventures.com/email/track_image.png?id=${email}" />
   `;
 
-    const messages = [{
+    const messages = [
+      {
         role: "system",
         content: "You are a helpful assistant writing an email.",
       },
@@ -129,35 +192,40 @@ async function generateEmailContent(
       },
     ];
 
-    const response = await callChatGPT(messages);
+    let subject, content;
 
-    console.log(response.choices[0].message.content);
+    while (true) {
+      try {
+        const response = await callChatGPT(messages);
 
-    const {
-      subject,
-      content
-    } = JSON.parse(
-      response.choices[0].message.content
-    );
+        ({ subject, content } = JSON.parse(
+          response.choices[0].message.content
+        ));
+
+        break;
+      } catch (error) {
+        console.log("Iterating due to wrong JSON format of ChatGPT rsesponse");
+      }
+    }
 
     return {
       subject,
-      content
+      content,
     };
   } catch (error) {
     console.error("Error generating message: ", error);
   }
 }
 
-async function updateStatus(list) {
+async function updateStatus(collectionName, list) {
   try {
-    await fetch(`http://localhost:5000/${collectionName}/save`, {
+    await fetch(`http://localhost:5000/${collectionName}/update-status`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        sentList: list
+        sentList: list,
       }),
     });
   } catch (error) {
@@ -165,16 +233,15 @@ async function updateStatus(list) {
   }
 }
 
-
-async function addValidation(contacts) {
+async function addValidation(collectionName, contacts) {
   try {
-    await fetch(`http://localhost:5000/${collectionName}/save`, {
+    await fetch(`http://localhost:5000/${collectionName}/add-validation`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        filtered: contacts
+        filtered: contacts,
       }),
     });
   } catch (error) {
@@ -195,12 +262,16 @@ async function simulateClick(element) {
 async function simulateKeyboardInput(element, value) {
   element.value = value;
 
-  await element.dispatchEvent(new Event("input", {
-    bubbles: true
-  }));
-  await element.dispatchEvent(new Event("change", {
-    bubbles: true
-  }));
+  await element.dispatchEvent(
+    new Event("input", {
+      bubbles: true,
+    })
+  );
+  await element.dispatchEvent(
+    new Event("change", {
+      bubbles: true,
+    })
+  );
 }
 
 function createNotification() {
@@ -209,19 +280,38 @@ function createNotification() {
   });
 }
 
-function getNextPageData(params) {
+async function getNextPageData(params) {
   // Fetch the next batch and start processing it
   console.log("getNextPageData");
-  let getEndpointUrl =  `http://localhost:5000/getContactList?`
-  for (param in params) {
-    getEndpointUrl+=`${param}=${params[param]}&`
+  let getEndpointUrl = `http://localhost:5000/getContactList?`;
+
+  params = {
+    ...params,
+    limit: Math.min(
+      pageSize, // Page limit is same as pageSize when it is not the last page.
+      params.endIndex - params.startIndex - pageSize * params.pageNumber // Page limit is equal or less than pageSize when the last page.
+    ),
+    pageSize,
+  };
+
+  // When exceed the last page, set the contacts array as empty array. Then finish iterating inside processQueue() function.
+  if (params.limit <= 0) {
+    return [];
   }
-  fetch(
-    getEndpointUrl
-    )
+
+  for (let param in params) {
+    if (["endIndex", "interval", "emailFieldName"].includes(param)) {
+      // Eliminate unnecessary queries in the url.
+      continue;
+    }
+
+    getEndpointUrl += `${param}=${params[param]}&`;
+  }
+
+  await fetch(getEndpointUrl)
     .then((response) => response.json())
     .then((data) => {
-      console.log("Fetched Data: ", data, pageNumber);
+      console.log("Fetched Data: ", data);
       if (data.finished) {
         console.log("Finished");
         chrome.runtime.sendMessage({
@@ -229,17 +319,16 @@ function getNextPageData(params) {
         });
       } else {
         contacts = data.contacts;
-        result_contacts = [];
-        sendNewEmail(0);
-        // updateStatus(sentList);
 
+        // updateStatus(sentList);
       }
     })
     .catch((error) => {
       console.error("Error fetching next batch:", error);
     });
-}
 
+  return contacts;
+}
 
 async function waitForElement(selector) {
   let element = document.querySelector(selector);
@@ -250,7 +339,9 @@ async function waitForElement(selector) {
   return element;
 }
 
-async function sendNewEmail(currentContact) {
+async function sendNewEmail(currentContact, emailFieldName) {
+  console.log("currentContact", currentContact);
+
   try {
     const composeButton = await waitForElement('[gh="cm"]');
 
@@ -269,10 +360,7 @@ async function sendNewEmail(currentContact) {
     );
     await simulateKeyboardInput(toField, currentContact[emailFieldName]);
 
-    const {
-      subject,
-      content
-    } = await generateEmailContent(
+    const { subject, content } = await generateEmailContent(
       currentContact["contact_first_name"],
       currentContact["contact_last_name"],
       currentContact["company_company_name"],
@@ -285,8 +373,6 @@ async function sendNewEmail(currentContact) {
     messageField.innerHTML = content || "";
 
     await simulateClick(sendButton);
-    setTimeout(() => sendNewEmail(index), interval);
-
   } catch (error) {
     console.log("Error sending email: ", error);
 
@@ -296,160 +382,120 @@ async function sendNewEmail(currentContact) {
 
     discardButton.click();
 
-    sendNewEmail(currentContact);
+    sendNewEmail(currentContact, emailFieldName);
   }
 }
 
-// async function startFilterEmail(index) {
-//   try {
-//     const composeButton = document.querySelector('[gh="cm"]');
+async function filterNewEmail(contact, emailFieldName) {
+  const composeButton = await waitForElement('[gh="cm"]');
+  console.log("composeButton");
 
-//     simulateClick(composeButton);
-//     const enterEvent = new KeyboardEvent("keydown", {
-//       key: "Enter",
-//       code: "Enter",
-//       which: 13,
-//       keyCode: 13,
-//       bubbles: true,
-//     });
+  simulateClick(composeButton);
 
-//     const toField = await waitForElement(
-//       'input[class="agP aFw"][peoplekit-id="BbVjBd"]'
-//     );
+  const toField = await waitForElement(
+    'input[class="agP aFw"][peoplekit-id="BbVjBd"]'
+  );
 
-//     const discardButton = await waitForElement(
-//       'div[data-tooltip="Discard draft ‪(Ctrl-Shift-D)‬"]'
-//     );
+  const discardButton = await waitForElement(
+    'div[data-tooltip="Discard draft ‪(Ctrl-Shift-D)‬"]'
+  );
 
-//     const currentRow = contacts[index];
+  try {
+    const enterEvent = new KeyboardEvent("keydown", {
+      key: "Enter",
+      code: "Enter",
+      which: 13,
+      keyCode: 13,
+      bubbles: true,
+    });
 
-//     currentRow["visited_validators"] = ["gmail"];
+    contact["visited_validators"] = ["gmail"];
 
-//     await simulateKeyboardInput(toField, currentRow[emailFieldName]);
+    await simulateKeyboardInput(toField, contact[emailFieldName]);
 
-//     toField.dispatchEvent(enterEvent);
+    toField.dispatchEvent(enterEvent);
 
-//     let imageElement = document.querySelector(
-//         "div[data-hovercard-id][data-name]"
-//       )?.children[0]?.children[0]?.children[0]?.children[0]?.children[0]
-//       ?.children[0]?.children[0]?.children[0]?.children[0];
+    let imageElement = document.querySelector(
+      "div[data-hovercard-id][data-name]"
+    )?.children[0]?.children[0]?.children[0]?.children[0]?.children[0]
+      ?.children[0]?.children[0]?.children[0]?.children[0];
 
-//     let polls = 0;
+    let polls = 0;
 
-//     while (!imageElement && polls < 20) {
-//       polls++;
-//       console.log("imageElement waiting");
+    while (!imageElement && polls < 20) {
+      polls++;
+      console.log("imageElement waiting");
 
-//       await new Promise((resolve) => setTimeout(resolve, 500));
+      await new Promise((resolve) => setTimeout(resolve, 500));
 
-//       imageElement = document.querySelector("div[data-hovercard-id][data-name]")
-//         ?.children[0]?.children[0]?.children[0]?.children[0]?.children[0]
-//         ?.children[0]?.children[0]?.children[0]?.children[0];
-//     }
+      imageElement = document.querySelector("div[data-hovercard-id][data-name]")
+        ?.children[0]?.children[0]?.children[0]?.children[0]?.children[0]
+        ?.children[0]?.children[0]?.children[0]?.children[0];
+    }
 
-//     if (!imageElement) {
-//       // filterNewEmail(index);
-//       return;
-//     }
+    if (
+      imageElement &&
+      !imageElement
+        .getAttribute("src")
+        .startsWith("https://lh3.googleusercontent.com/a/default-user")
+    ) {
+      contact["passed_validator"] = "gmail";
+    }
 
-//     if (
-//       !imageElement
-//       .getAttribute("src")
-//       .startsWith("https://lh3.googleusercontent.com/a/default-user")
-//     ) {
-//       currentRow["passed_validator"] = "gmail";
-//     }
+    discardButton.click();
+  } catch (error) {
+    console.log("Error writing email address", error);
 
-//     result_contacts.push(currentRow);
+    discardButton.click();
+  }
 
-//     discardButton.click();
+  return contact;
+}
 
-//     console.log(
-//       "CURRENT PAGE: ",
-//       pageNumber + 1,
-//       "/",
-//       Math.ceil((endIndex - startIndex) / pageSize)
-//     );
-
-//     const totalAtThisPage =
-//       endIndex < startIndex + pageSize * (pageNumber + 1) ?
-//       endIndex - startIndex - pageSize * pageNumber :
-//       pageSize;
-
-//     console.log("POSITION AT CURRENT PAGE: ", index + 1, "/", totalAtThisPage);
-
-//     if (index < totalAtThisPage - 1) {
-//       index++;
-
-//       sendNewEmail(index);
-//     } else {
-//       addValidation(result_contacts);
-//       pageNumber++;
-//       getNextPageData(collectionName, startIndex, endIndex, pageNumber);
-//     }
-//     // };
-
-//     // waitForElement();
-//   } catch (error) {
-//     console.log("writeEmail error", error);
-
-//     discardButton.click();
-
-//     sendNewEmail(index);
-//   }
-// }
 window.addEventListener("load", () => {
   if (!window.hasLoadedContentScript) {
     window.hasLoadedContentScript = true;
 
-    // contacts = data.contacts || [];
-    // pageSize = contacts.length;
-    // startIndex = data.startIndex;
-    // endIndex = data.endIndex;
-    // interval = data.interval || 6000;
-    // pageNumber = data.pageNumber;
-    // emailFieldName = data.emailFieldName || "contact_email_1";
-    // collectionName = data.collectionName;
+    chrome.runtime.onMessage.addListener(function (
+      request,
+      sender,
+      sendResponse
+    ) {
+      if (request.message === "start_action") {
+        // Perform actions based on the message
+        console.log(request.data); // Log the message data sent from the popup
+        let params = {
+          startIndex: request.data.startIndex,
+          endIndex: request.data.endIndex,
+          collectionName: request.data.collectionName,
+          interval: request.data.interval || 5000,
+          emailFieldName: request.data.emailFieldName || "contact_email_1",
+          pageNumber: 0,
+        };
 
-    // console.log("contacts: ", contacts);
-
-
-    chrome.runtime.onMessage.addListener(
-      function (request, sender, sendResponse) {
-        if (request.message === "start_action") {
-          // Perform actions based on the message
-          console.log(request.data); // Log the message data sent from the popup
-          if(request.data.actionType == "send-email") {
-            let params = {
-              startIndex: request.data.startIndex,
-              endIndex: request.data.endIndex,
-              // startIndex: request.data.startIndex,
-              // startIndex: request.data.startIndex,
-            };
-            sendingEmail.start(params);
-          } else {
-            // fitleringEmail.start();
-          }
-          // sendNewEmail(0);
-          // Optionally send a response back to the popup
-          sendResponse({
-            response: "started"
-          });
+        if (request.data.actionType == "send-email") {
+          sendingEmail.start({ type: "send", ...params });
+        } else {
+          filteringEmail.start({ type: "filter", ...params });
         }
-        if (request.message === "end_action") {
-          // Perform actions based on the message
-          console.log(request.data); // Log the message data sent from the popup
-          if(request.data.actionType == "send-email") {
-            sendingEmail.stop();
-          } else {
-            // fitleringEmail.stop();
-          }
-          // Optionally send a response back to the popup
-          sendResponse({
-            response: "stopped"
-          });
-        }
+        // Optionally send a response back to the popup
+        sendResponse({
+          response: "started",
+        });
       }
-    );
+      if (request.message === "end_action") {
+        // Perform actions based on the message
+        console.log(request.data); // Log the message data sent from the popup
+        if (request.data.actionType == "send-email") {
+          sendingEmail.stop();
+        } else {
+          filteringEmail.stop();
+        }
+        // Optionally send a response back to the popup
+        sendResponse({
+          response: "stopped",
+        });
+      }
+    });
   }
 });
