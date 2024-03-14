@@ -317,6 +317,7 @@ async function getNextPageData(params) {
         chrome.runtime.sendMessage({
           action: "createNotification",
         });
+        contacts = [];
       } else {
         contacts = data.contacts;
 
