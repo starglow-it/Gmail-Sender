@@ -49,7 +49,7 @@ def load_smtp_credentials():
 
 def send_email(server, from_email, to_email, subject, message):
     # Setup the MIME
-    print(from_email, to_email)
+    print('From: ', from_email, 'To: ', to_email)
     msg = MIMEMultipart()
     msg['From'] = from_email
     msg['To'] = to_email
@@ -60,7 +60,7 @@ def send_email(server, from_email, to_email, subject, message):
     try:
         text = msg.as_string()
         server.sendmail(from_email, to_email, text)
-        print(f"Email sent to {to_email}")
+        print("Email sent successfully.")
 
         return True
     except Exception as e:
