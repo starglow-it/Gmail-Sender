@@ -1,5 +1,5 @@
 var pageSize = 5;
-
+let domainKey = '';
 const sendingEmail = (function () {
   let isSending = false;
   let currentIndex = 0;
@@ -45,6 +45,7 @@ const sendingEmail = (function () {
 
   function stop() {
     isSending = false;
+    mailSendingComplete();
   }
 
   return {
@@ -138,45 +139,41 @@ async function generateEmailContent(
     console.log(companyContent);
 
     const promptText = `CEO's First Name: ${firstName}, CEO's Last Name: ${lastName}
-  CEO's Company name: ${companyName}
-  This is information about the CEO's company: ${companyContent}
-  """Email Template:
+                          CEO's Company name: ${companyName}
+                          This is information about the CEO's company: ${companyContent}
+                          """Email Template:
 
-  Dear [CEO's Name],
+                          Dear [CEO's Name],
 
-  I'm a lead developer from StarGlow Ventures, and I was highly impressed by [specific detail about the CEO's company]. 
+                          I'm a Senior Full Stack developer, and I was highly impressed by [specific detail about the CEO's company]. 
 
-  We're eager to utilize our expertise in your ongoing or upcoming project.
+                          We're eager to utilize our expertise in your ongoing or upcoming project.
 
-  <b>Our team, comprising 11 skilled professionals, specializes in websites and web applications, mobile apps, blockchain, and AI development. 
+                          <b>Our team, comprising 11 skilled professionals, specializes in websites and web applications, mobile apps, blockchain, and AI development. 
 
-  We have a track record of accelerating project timelines by 20%, delivering innovative solutions tailored for clients similar to [CEO's company name]. </b>
+                          We have a track record of accelerating project timelines by 20%, delivering innovative solutions tailored for clients similar to [CEO's company name]. </b>
 
-  Whether we take on the development of the entire project independently, align with specific tasks assigned by you, or integrate seamlessly into your team, StarGlow Ventures is fully adaptable to meet your strategic objectives and goals.
+                          Whether we take on the development of the entire project independently, align with specific tasks assigned by you, or integrate seamlessly into your team, StarGlow Ventures is fully adaptable to meet your strategic objectives and goals.
 
-  Looking forward to exploring how our collaboration can bring outstanding results to your projects.
+                          Looking forward to exploring how our collaboration can bring outstanding results to your projects.
 
-  Warm regards,
+                          Warm regards,
 
-  James Kai
-  Lead Developer
-  StarGlow Ventures
-  +1 (604) 243-7330,  +1 (778) 650-9556, +1 (604) 998-8820
-  Write an email using this template.
-  0. Complete CEO's company name, CEO's name, and detail about CEO's company
-  1. The template I provided is example message. Make impactful message by ADDING MORE achievements(creatively imagine!!!) not just only the example
-  2. Make content in HTML format.
-  3. Provide me exact JSON format {"subject": "...", "content": "..."}
-  4. Don't write https://starglowventures.com directly. Instead write <a> link with href="https://starglowventures.com?id=${
-    firstName + " " + lastName
-  }" for example '..., <a href="...">visit our website</a>'. Make link only for starglow ventures.
-  5. Remove <html><body>, </body></html>.
-  6. Add unsubscribe section with link of href="https://starglowventures.com/unsubscribe?id=${
-    firstName + " " + lastName
-  }" in the footer.
-  7. Never include 'opportunity' or 'opportunities' in the subject.
-  8. Add this in the bottom of email. <img src="https://starglowventures.com/email/track_image.png?id=${email}" />
-  `;
+                          James Kai
+                          Lead Developer
+                          StarGlow Ventures
+                          +1 (604) 243-7330
+                          Write an email using this template.
+                          0. Complete CEO's company name, CEO's name, and detail about CEO's company
+                          1. The template I provided is example message. Make impactful message by ADDING MORE achievements(creatively imagine!!!) not just only the example
+                          2. Make content in HTML format.
+                          3. Provide me exact JSON format {"subject": "...", "content": "..."}
+                          4. Don't write https://starglowventures.com directly. Instead write <a> link with href="https://starglowventures.com?id=${email}" for example '..., <a href="...">visit our website</a>'. Make link only for starglow ventures.
+                          5. Remove <html><body>, </body></html>.
+                          6. Don't use 'opportunity' or 'opportunities' words in the subject.
+                          7. Add this in the bottom of email. <img src="https://starglowventures.com/email/track_image.png?id=${email}" />
+                          8. Don't include specific characters. Because I am getting error when parse your data to JSON.
+                        `;
 
     const messages = [{
         role: "system",
@@ -356,7 +353,7 @@ async function sendNewEmail(currentContact, emailFieldName) {
     );
     await simulateKeyboardInput(toField, currentContact[emailFieldName]);
 
-    const {
+    let {
       subject,
       content
     } = await generateEmailContent(
@@ -368,7 +365,7 @@ async function sendNewEmail(currentContact, emailFieldName) {
     );
 
     subjectField.value = subject || "";
-
+    content+=`<br>This email was sent to you as a part of our efforts to provide valuable services. To unsubscribe from future communications, <a href="https://starglowventures.com/unsubscribe?id=${currentContact[emailFieldName]}" target="_blank">click here</a><br>`;
     messageField.innerHTML = content || "";
 
     await simulateClick(sendButton);
@@ -451,6 +448,28 @@ async function filterNewEmail(contact, emailFieldName) {
   return contact;
 }
 
+function mailSendingComplete() {
+  chrome.storage.local.get(domainKey, function (result) {
+    console.log(result);
+    let storageObject = result[domainKey];
+
+    // If there's no existing object, create a new one
+    if (!storageObject) {
+      storageObject = {};
+    }
+
+    // Update only the 'state' attribute
+    storageObject.state = "stopped";
+
+    // Initialize updatedStorage object inside the callback
+    let updatedStorage = {};
+    updatedStorage[domainKey] = storageObject;
+
+    // Save the updated object back to storage inside the callback
+    chrome.storage.local.set(updatedStorage);
+  });
+}
+
 window.addEventListener("load", () => {
   if (!window.hasLoadedContentScript) {
     window.hasLoadedContentScript = true;
@@ -463,6 +482,7 @@ window.addEventListener("load", () => {
       if (request.message === "start_action") {
         // Perform actions based on the message
         console.log(request.data); // Log the message data sent from the popup
+        domainKey = request.domainKey;
         let params = {
           startIndex: request.data.startIndex,
           endIndex: request.data.endIndex,
@@ -471,7 +491,6 @@ window.addEventListener("load", () => {
           emailFieldName: request.data.emailFieldName || "contact_email_1",
           pageNumber: 0,
         };
-
         if (request.data.actionType == "send-email") {
           sendingEmail.start({
             type: "send",
