@@ -1,6 +1,6 @@
 @echo off
 echo Installing virtual environment...
-python -m venv venv
+python3.12 -m venv venv
 
 echo Activating virtual environment...
 call venv\Scripts\activate.bat

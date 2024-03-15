@@ -8,6 +8,7 @@ from email.mime.text import MIMEText
 import smtplib
 import json
 import time
+from itertools import cycle
 
 from gpt_generate_message import generate_message
 from scrape_website import fetch_website_data
@@ -24,14 +25,33 @@ db = mongo_client['reachStream']
 
 # Email settings
 smtp_server = os.getenv('SMTP_SERVER')  
-smtp_port = os.getenv('SMTP_PORT')  
-smtp_user = os.getenv('SMTP_USER')
-smtp_password = os.getenv('SMTP_PASSWORD')
+smtp_port = os.getenv('SMTP_PORT') 
 
-def send_email(server, to_email, subject, message):
+def load_smtp_credentials():
+    credential_list = []
+    index = 1  # Start with credential set 1
+
+    # Loop until no more credential sets are found
+    while True:
+        smtp_user = os.getenv(f'SMTP_USER_{index}')
+        smtp_password = os.getenv(f'SMTP_PASSWORD_{index}')
+
+        if smtp_user and smtp_password:
+            credential_list.append({
+                'smtp_user': smtp_user,
+                'smtp_password': smtp_password
+            })
+            index += 1
+        else:
+            break # Exit loop
+    
+    return credential_list
+
+def send_email(server, from_email, to_email, subject, message):
     # Setup the MIME
+    print(from_email, to_email)
     msg = MIMEMultipart()
-    msg['From'] = smtp_user
+    msg['From'] = from_email
     msg['To'] = to_email
     msg['Subject'] = subject
     msg.attach(MIMEText(message, 'html'))
@@ -39,7 +59,7 @@ def send_email(server, to_email, subject, message):
     #Send the email
     try:
         text = msg.as_string()
-        server.sendmail(smtp_user, to_email, text)
+        server.sendmail(from_email, to_email, text)
         print(f"Email sent to {to_email}")
 
         return True
@@ -76,17 +96,24 @@ def main():
     start_index = int(input('Enter the start index: '))
     end_index = int(input('Enter the end index: '))
 
+    credential_list = load_smtp_credentials()
+
     contacts_collection = db[collection_name]  # Here, replace the collection name you want to send email to.
 
-    # SMTP Server configuration
-    server = smtplib.SMTP(smtp_server, smtp_port)
-    server.starttls()   # Enable security
-    server.login(smtp_user, smtp_password)   # Login with credential
+    # Cycle through credentials indefinitely
+    credential_cycle = cycle(credential_list)
 
     # Retrieving data from the database.
     contacts = list(contacts_collection.find())[start_index:end_index]
 
     for contact in contacts:
+        cred = next(credential_cycle)
+
+        # SMTP Server configuration
+        server = smtplib.SMTP(smtp_server, smtp_port)
+        server.starttls()   # Enable security
+        server.login(cred['smtp_user'], cred['smtp_password'])   # Login with credential
+
         # Scrape company description from their website
         company_description = fetch_website_data(contact['company_website'])
 
@@ -99,7 +126,7 @@ def main():
             pass
 
         # Send email and retrieve sent_status
-        is_sent_successfully = send_email(server, contact['contact_email_1'], parsed_dict['subject'], parsed_dict['content'])
+        is_sent_successfully = send_email(server, cred['smtp_user'], contact['contact_email_1'], parsed_dict['subject'], parsed_dict['content'])
 
         #Update the database if the email was sent successfully
         if is_sent_successfully:
@@ -109,7 +136,7 @@ def main():
                 upsert=True
             )
 
-    server.quit()
+        server.quit()
 
 if __name__ == "__main__":
     main()
