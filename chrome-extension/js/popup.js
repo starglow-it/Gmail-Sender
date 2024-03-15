@@ -19,6 +19,7 @@ document.addEventListener("DOMContentLoaded", function () {
       {
         message: startButton.value == "Start" ? "start_action" : "end_action",
         data: message,
+        domainKey: domainKey
       },
       callback
     );

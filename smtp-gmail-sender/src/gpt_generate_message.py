@@ -31,11 +31,11 @@ def generate_message(client, ceo_name, email, company_name, company_description 
         2. Make content in HTML format.
         3. Provide me exact JSON format {{"subject": "...", "content": "..."}}
         4. Don't write https://starglowventures.com directly. Instead write <a> link with href="https://starglowventures.com?id={
-            ceo_name
+            email
         }" for example '..., <a href="...">visit our website</a>'. Make link only for starglow ventures.
         5. Remove <html><body>, </body></html>.
         6. Add unsubscribe section with link of href="https://starglowventures.com/unsubscribe?id={
-            ceo_name
+            email
         }" in the footer.
         7. Never include 'opportunity' or 'opportunities' in the subject.
         8. Add this in the bottom of email. <img src="https://starglowventures.com/email/track_image.png?id={email}" />
