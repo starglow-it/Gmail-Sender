@@ -1,5 +1,4 @@
-var contacts,
-  pageSize = 2;
+var pageSize = 5;
 
 const sendingEmail = (function () {
   let isSending = false;
@@ -108,23 +107,21 @@ const filteringEmail = (function () {
   };
 })();
 
-async function callChatGPT(promptText, callback) {
-  const chatGPTApiUrl = "https://api.openai.com/v1/chat/completions";
-  const chatGPTApiKey = "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";
+async function callChatGPT(promptText) {
   try {
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    const response = await fetch("http://localhost:5000/chatgpt", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${chatGPTApiKey}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "gpt-3.5-turbo",
-        messages: promptText,
+        prompt: promptText,
       }),
     });
+    let res = await response.json();
+    console.log(res)
+    return res.data;
 
-    return response.json();
   } catch (error) {
     console.log("Error calling ChatGPT API: ", error);
   }
@@ -181,8 +178,7 @@ async function generateEmailContent(
   8. Add this in the bottom of email. <img src="https://starglowventures.com/email/track_image.png?id=${email}" />
   `;
 
-    const messages = [
-      {
+    const messages = [{
         role: "system",
         content: "You are a helpful assistant writing an email.",
       },
@@ -194,18 +190,16 @@ async function generateEmailContent(
 
     let subject, content;
 
-    while (true) {
-      try {
-        const response = await callChatGPT(messages);
-
-        ({ subject, content } = JSON.parse(
-          response.choices[0].message.content
-        ));
-
-        break;
-      } catch (error) {
-        console.log("Iterating due to wrong JSON format of ChatGPT rsesponse");
-      }
+    // while (true) {
+    // }
+    try {
+      const data = await callChatGPT(messages);
+      subject = data.subject
+      content = data.content
+      console.log(subject, content)
+      // break;
+    } catch (error) {
+      console.log("Iterating due to wrong JSON format of ChatGPT rsesponse");
     }
 
     return {
@@ -281,6 +275,7 @@ function createNotification() {
 }
 
 async function getNextPageData(params) {
+  let contacts = [];
   // Fetch the next batch and start processing it
   console.log("getNextPageData");
   let getEndpointUrl = `http://localhost:5000/getContactList?`;
@@ -361,7 +356,10 @@ async function sendNewEmail(currentContact, emailFieldName) {
     );
     await simulateKeyboardInput(toField, currentContact[emailFieldName]);
 
-    const { subject, content } = await generateEmailContent(
+    const {
+      subject,
+      content
+    } = await generateEmailContent(
       currentContact["contact_first_name"],
       currentContact["contact_last_name"],
       currentContact["company_company_name"],
@@ -417,8 +415,8 @@ async function filterNewEmail(contact, emailFieldName) {
     toField.dispatchEvent(enterEvent);
 
     let imageElement = document.querySelector(
-      "div[data-hovercard-id][data-name]"
-    )?.children[0]?.children[0]?.children[0]?.children[0]?.children[0]
+        "div[data-hovercard-id][data-name]"
+      )?.children[0]?.children[0]?.children[0]?.children[0]?.children[0]
       ?.children[0]?.children[0]?.children[0]?.children[0];
 
     let polls = 0;
@@ -437,8 +435,8 @@ async function filterNewEmail(contact, emailFieldName) {
     if (
       imageElement &&
       !imageElement
-        .getAttribute("src")
-        .startsWith("https://lh3.googleusercontent.com/a/default-user")
+      .getAttribute("src")
+      .startsWith("https://lh3.googleusercontent.com/a/default-user")
     ) {
       contact["passed_validator"] = "gmail";
     }
@@ -475,9 +473,15 @@ window.addEventListener("load", () => {
         };
 
         if (request.data.actionType == "send-email") {
-          sendingEmail.start({ type: "send", ...params });
+          sendingEmail.start({
+            type: "send",
+            ...params
+          });
         } else {
-          filteringEmail.start({ type: "filter", ...params });
+          filteringEmail.start({
+            type: "filter",
+            ...params
+          });
         }
         // Optionally send a response back to the popup
         sendResponse({

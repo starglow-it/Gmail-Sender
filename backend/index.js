@@ -7,6 +7,7 @@ const dotenv = require("dotenv");
 const cors = require("cors");
 const morgan = require("morgan");
 dotenv.config();
+const apiKey = process.env.OPENAI_API_KEY;
 
 const options = {
   rejectUnauthorized: false,
@@ -146,6 +147,33 @@ async function enrichContactsWithCompanyData(partData) {
     })
   );
 }
+
+
+app.post('/chatgpt', async (req, res) => {
+  try {
+    console.log(req.body)
+    const { prompt } = req.body;
+    if (!prompt) {
+      return res.status(400).send({ message: 'Prompt is required' });
+    }
+    console.log(prompt)
+    const response = await axios.post('https://api.openai.com/v1/chat/completions', {
+      model: "gpt-3.5-turbo",
+      messages: prompt,
+    }, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`
+      }
+    });
+
+    // Send back the ChatGPT response
+    return res.status(200).json({data: JSON.parse(response.data.choices[0].message.content)});
+  } catch (error) {
+    console.error(error);
+    res.status(500).send({ message: 'Error processing your request' });
+  }
+});
 
 app.post("/:collectionName/update-status", async (req, res) => {
   try {
