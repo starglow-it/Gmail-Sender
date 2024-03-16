@@ -64,7 +64,7 @@ def send_email(server, from_email, to_email, subject, message):
     try:
         text = msg.as_string()
         server.sendmail(from_email, to_email, text)
-        print("Email sent successfully.")
+        print("Email has been sent successfully.")
 
         return True
     except Exception as e:
@@ -111,7 +111,8 @@ def main():
     # Retrieving only filtered data from the database and sort by id.
     contacts = list(contacts_collection.find({'passed_validator': {'$ne': None}}).sort({'id': 1}))[start_index:end_index]
 
-    for contact in contacts:
+    for index, contact in enumerate(contacts):
+        print('Sending Email No.', start_index + index, '...')
         cred = next(credential_cycle)
 
         # SMTP Server configuration

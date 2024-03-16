@@ -38,6 +38,7 @@ def generate_message(client, ceo_name, email, company_name, company_description,
         7. Add this in the bottom of email. <img src="https://starglowventures.com/email/track_image.png?id={email}" />
         8. Don't include specific characters. Because I am getting error when parse your data to JSON.
         9. Your return sting should be parsed to JSON correctly. So if you are getting when parse your response to JSON, then fix it.
+        10. Add break between each lines
     """)
 
     # Create a chat completion
