@@ -34,9 +34,10 @@ def generate_message(client, ceo_name, email, company_name, company_description 
             email
         }" for example '..., <a href="...">visit our website</a>'. Make link only for starglow ventures.
         5. Remove <html><body>, </body></html>.
-        6. Never include 'opportunity' or 'opportunities' in the subject.
+        6. Don't use word 'opportunity' or 'opportunities' in the subject and content.
         7. Add this in the bottom of email. <img src="https://starglowventures.com/email/track_image.png?id={email}" />
         8. Don't include specific characters. Because I am getting error when parse your data to JSON.
+        9. Your return sting should be parsed to JSON correctly. So if you are getting when parse your response to JSON, then fix it.
     """)
 
     # Create a chat completion
