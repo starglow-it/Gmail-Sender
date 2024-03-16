@@ -48,8 +48,9 @@ def load_smtp_credentials():
     return credential_list
 
 def send_email(server, from_email, to_email, subject, message):
-    # Setup the MIME
     print('From: ', from_email, 'To: ', to_email)
+
+    # Setup the MIME
     msg = MIMEMultipart()
     msg['From'] = from_email
     msg['To'] = to_email
@@ -95,6 +96,7 @@ def main():
     collection_name = input('Enter the collection name: ')
     start_index = int(input('Enter the start index: '))
     end_index = int(input('Enter the end index: '))
+    time_interval = int(input('Enter the time interval in seconds: '))
 
     credential_list = load_smtp_credentials()
 
@@ -137,6 +139,8 @@ def main():
             )
 
         server.quit()
+
+        time.sleep(time_interval)
 
 if __name__ == "__main__":
     main()
