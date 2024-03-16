@@ -7,7 +7,7 @@ def fetch_website_data(url):
             url = 'https://' + url
 
         # Send a GET request to the URL
-        response = requests.get(url)
+        response = requests.get(url, timeout=10)
         
         # Check if the request was successful
         if response.status_code == 200:
