@@ -107,7 +107,7 @@ def main():
     credential_cycle = cycle(credential_list)
 
     # Retrieving only filtered data from the database and sort by id.
-    contacts = list(contacts_collection.find({'passed_validator': {'$ne': None}}).sort({'_id': 1}))[start_index:end_index]
+    contacts = list(contacts_collection.find({'passed_validator': {'$ne': None}}).sort({'id': 1}))[start_index:end_index]
 
     for contact in contacts:
         cred = next(credential_cycle)
