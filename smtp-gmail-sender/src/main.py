@@ -48,7 +48,7 @@ def load_smtp_credentials():
     return credential_list
 
 def send_email(server, from_email, to_email, subject, message):
-    print('From: ', from_email, 'To: ', to_email)
+    print('From: ', from_email, '       To: ', to_email)
 
     # Setup the MIME
     msg = MIMEMultipart()
@@ -106,8 +106,8 @@ def main():
     # Cycle through credentials indefinitely
     credential_cycle = cycle(credential_list)
 
-    # Retrieving data from the database.
-    contacts = list(contacts_collection.find())[start_index:end_index]
+    # Retrieving only filtered data from the database and sort by id.
+    contacts = list(contacts_collection.find({'passed_validator': {'$ne': None}}).sort({'_id': 1}))[start_index:end_index]
 
     for contact in contacts:
         cred = next(credential_cycle)
