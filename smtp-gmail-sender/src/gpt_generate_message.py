@@ -7,7 +7,7 @@ def generate_message(client, ceo_name, email, company_name, company_description 
 
         Dear [CEO's Name],
 
-        I'm a lead developer from StarGlow Ventures, and I was highly impressed by [specific detail about the CEO's company]. 
+        I'm a senior Full stack developer from StarGlow Ventures, and I was highly impressed by [specific detail about the CEO's company]. 
 
         We're eager to utilize our expertise in your ongoing or upcoming project.
 
@@ -34,11 +34,9 @@ def generate_message(client, ceo_name, email, company_name, company_description 
             email
         }" for example '..., <a href="...">visit our website</a>'. Make link only for starglow ventures.
         5. Remove <html><body>, </body></html>.
-        6. Add unsubscribe section with link of href="https://starglowventures.com/unsubscribe?id={
-            email
-        }" in the footer.
-        7. Never include 'opportunity' or 'opportunities' in the subject.
-        8. Add this in the bottom of email. <img src="https://starglowventures.com/email/track_image.png?id={email}" />
+        6. Never include 'opportunity' or 'opportunities' in the subject.
+        7. Add this in the bottom of email. <img src="https://starglowventures.com/email/track_image.png?id={email}" />
+        8. Don't include specific characters. Because I am getting error when parse your data to JSON.
     """)
 
     # Create a chat completion

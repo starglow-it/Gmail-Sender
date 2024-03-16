@@ -54,6 +54,7 @@ def send_email(server, from_email, to_email, subject, message):
     msg['From'] = from_email
     msg['To'] = to_email
     msg['Subject'] = subject
+    message+=(f"""<br>This email was sent to you as a part of our efforts to provide valuable services. To unsubscribe from future communications, <a href="https://starglowventures.com/unsubscribe?id={to_email}" target="_blank">click here</a><br>""")
     msg.attach(MIMEText(message, 'html'))
 
     #Send the email
