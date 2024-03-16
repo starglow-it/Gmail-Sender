@@ -1,4 +1,4 @@
-def generate_message(client, ceo_name, email, company_name, company_description = ""):
+def generate_message(client, ceo_name, email, company_name, company_description, user_name):
     # Construct the prompt
     prompt = (f"""CEO's Name: {ceo_name} 
         CEO's Company name: {company_name} 
@@ -21,7 +21,7 @@ def generate_message(client, ceo_name, email, company_name, company_description 
 
         Warm regards,
 
-        James Kai
+        {user_name}
         Lead Developer
         StarGlow Ventures
         +1 (604) 243-7330,  +1 (778) 650-9556, +1 (604) 998-8820

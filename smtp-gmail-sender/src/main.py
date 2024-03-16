@@ -35,11 +35,13 @@ def load_smtp_credentials():
     while True:
         smtp_user = os.getenv(f'SMTP_USER_{index}')
         smtp_password = os.getenv(f'SMTP_PASSWORD_{index}')
+        user_name = os.getenv(f'SMTP_USERNAME_{index}')
 
         if smtp_user and smtp_password:
             credential_list.append({
                 'smtp_user': smtp_user,
-                'smtp_password': smtp_password
+                'smtp_password': smtp_password,
+                'user_name': user_name
             })
             index += 1
         else:
@@ -71,13 +73,13 @@ def send_email(server, from_email, to_email, subject, message):
         return False
 
 
-def fetch_and_parse_gpt_response(openai_client, contact, company_description):
+def fetch_and_parse_gpt_response(openai_client, contact, company_description, user_name):
     max_retries = 5
     retry_delay = 2  # seconds
     for attempt in range(max_retries):
         try:
             # Assuming generate_message is your function that calls the GPT API
-            gpt_response = generate_message(openai_client, contact['contact_name'], contact['contact_email_1'], contact['company_company_name'], company_description)
+            gpt_response = generate_message(openai_client, contact['contact_name'], contact['contact_email_1'], contact['company_company_name'], company_description, user_name)
             # Parse JSON into dictionary
             parsed_response = json.loads(gpt_response)
 
@@ -122,7 +124,7 @@ def main():
 
 
         # Retrieve response dictionary after fetching GPT API and parsing.
-        parsed_dict = fetch_and_parse_gpt_response(openai_client, contact, company_description)
+        parsed_dict = fetch_and_parse_gpt_response(openai_client, contact, company_description, cred['user_name'])
 
         # If still error in GPT response and exceed the maximum count, move to the next content
         if (parsed_dict == None):
